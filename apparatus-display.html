@@ -9,8 +9,8 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }
         
+        }
         body {
             background: black;
             color: white;
@@ -118,15 +118,11 @@
     </style>
 </head>
 <body>
-    <!-- Standby Screen -->
+   <!-- Standby Screen -->
     <div id="standbyScreen" class="standby-screen">
-        <svg class="standby-logo" viewBox="0 0 400 400">
-            <!-- Simple fire department logo placeholder -->
-            <circle cx="200" cy="200" r="180" fill="#ff0000" stroke="#fff" stroke-width="8"/>
-            <text x="200" y="220" text-anchor="middle" font-size="120" font-weight="bold" fill="#fff">E2</text>
-        </svg>
-        <div class="standby-shift">SHIFT B</div>
-        <div class="standby-time" id="currentTime">--:--</div>
+        <iframe src="http://10.2.1.111/FSASPortal/Pages/ScreenView.aspx?location=-1&limit=20&fsize=25&refresh=1" 
+                style="width: 100%; height: 100%; border: none; background: black;">
+        </iframe>
     </div>
     
     <!-- Alert Screen -->
