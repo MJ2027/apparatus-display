@@ -71,6 +71,7 @@
         .alert-container {
             display: flex;
             flex: 1;
+            overflow: hidden;
         }
         
         .alert-left {
@@ -78,6 +79,7 @@
             background: white;
             position: relative;
             border-right: 4px solid #333;
+            overflow: hidden;
         }
         
         .alert-right {
@@ -87,6 +89,7 @@
             align-items: center;
             justify-content: center;
             position: relative;
+            overflow: hidden;
         }
         
         .alert-iframe {
@@ -95,11 +98,12 @@
             border: none;
         }
         
+        /* FIXED: Street View now fills entire right panel */
         .alert-image {
-            max-width: 98%;
-            max-height: 98%;
-            object-fit: contain;
-            border: 3px solid #444;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
         
         .panel-label {
@@ -176,22 +180,52 @@ const firebaseConfig = {
             alertScreen.classList.remove('active');
         }
         
-        // Show alert screen
-        function showAlert(address, mapsUrl, streetViewUrl) {
-            console.log('[ALERT] Displaying:', address);
-            
-            // Update content
-            alertHeader.textContent = `ENGINE 702 - ${address}`;
-            
-            // Convert search URL to embed URL for iframe compatibility
-            // Extract coordinates or address from the URL and use Embed API
-            let embedUrl = mapsUrl;
-            if (mapsUrl.includes('query=')) {
-                const query = mapsUrl.split('query=')[1].split('&')[0];
-                embedUrl = `https://www.google.com/maps/embed/v1/place?key=AIzaSyDpkfbB4N_a2s0PPY_e7rt8o3R5efWa5wc&q=${query}&zoom=19`;
+        // FIXED: Enhanced map URL builder with Maryland geocoding and coordinate fallback
+        function buildEnhancedMapUrl(address, mapsUrl, lat, lon) {
+            // Strategy 1: If we have coordinates from PowerShell (MOST RELIABLE)
+            if (lat && lon) {
+                console.log('[MAP] Using coordinates:', lat, lon);
+                return `https://www.google.com/maps/embed/v1/view?key=AIzaSyDpkfbB4N_a2s0PPY_e7rt8o3R5efWa5wc&center=${lat},${lon}&zoom=18&maptype=roadmap`;
             }
             
-            mapsFrame.src = embedUrl;
+            // Strategy 2: Extract query from existing URL and enhance with Maryland
+            if (mapsUrl && mapsUrl.includes('query=')) {
+                const query = mapsUrl.split('query=')[1].split('&')[0];
+                const decodedQuery = decodeURIComponent(query);
+                
+                // Add Maryland and USA for better geocoding
+                const enhancedQuery = encodeURIComponent(`${decodedQuery}, Maryland, USA`);
+                
+                // FIXED: Zoom set to 18 for street-level, with DC metro area bias
+                const dcMetroLat = 38.9897;  // Takoma Park area
+                const dcMetroLon = -77.0089;
+                
+                console.log('[MAP] Using enhanced address search:', decodedQuery + ', Maryland, USA');
+                return `https://www.google.com/maps/embed/v1/place?key=AIzaSyDpkfbB4N_a2s0PPY_e7rt8o3R5efWa5wc&q=${enhancedQuery}&zoom=18&center=${dcMetroLat},${dcMetroLon}&region=US`;
+            }
+            
+            // Strategy 3: Fallback - build from scratch with address
+            const enhancedAddress = encodeURIComponent(`${address}, Montgomery County, Maryland, USA`);
+            const dcMetroLat = 38.9897;
+            const dcMetroLon = -77.0089;
+            
+            console.log('[MAP] Using fallback address search:', address);
+            return `https://www.google.com/maps/embed/v1/place?key=AIzaSyDpkfbB4N_a2s0PPY_e7rt8o3R5efWa5wc&q=${enhancedAddress}&zoom=18&center=${dcMetroLat},${dcMetroLon}&region=US`;
+        }
+        
+        // Show alert screen
+        function showAlert(address, mapsUrl, streetViewUrl, lat, lon) {
+            console.log('[ALERT] Displaying:', address);
+            console.log('[ALERT] Coordinates:', lat, lon);
+            console.log('[ALERT] Original maps URL:', mapsUrl);
+            
+            // Update header
+            alertHeader.textContent = `ENGINE 702 - ${address}`;
+            
+            // FIXED: Build enhanced map URL with all fallback strategies
+            const enhancedMapUrl = buildEnhancedMapUrl(address, mapsUrl, lat, lon);
+            
+            mapsFrame.src = enhancedMapUrl;
             streetViewImage.src = streetViewUrl;
             
             // Switch to alert screen
@@ -216,7 +250,12 @@ const firebaseConfig = {
             
             if (alert && alert.active) {
                 console.log('[FIREBASE] Alert received:', alert);
-                showAlert(alert.address, alert.mapsUrl, alert.streetViewUrl);
+                
+                // Extract coordinates if available (multiple possible field names)
+                const lat = alert.latitude || alert.lat || null;
+                const lon = alert.longitude || alert.lon || alert.lng || null;
+                
+                showAlert(alert.address, alert.mapsUrl, alert.streetViewUrl, lat, lon);
             } else {
                 console.log('[FIREBASE] No active alert');
                 showStandby();
